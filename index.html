@@ -1,331 +1,238 @@
+<!--
+File: Rekap Riwayat Sertifikasi Guru - responsive.html
+Contains two parts in one file for convenience:
+  1) index.html (front-end responsive form)
+  2) Google Apps Script (Code.gs) shown below in a code block — paste into a new Apps Script project
+
+Before using: create Google Spreadsheet and deploy the Apps Script web app (instructions included in the file). Replace placeholders: SPREADSHEET_ID and WEB_APP_URL in the front-end.
+Theme: "Dapodik" (blue/white), responsive, client-side validation, auto-save to Google Spreadsheet via Apps Script.
+-->
+
 <!doctype html>
 <html lang="id">
- <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Rekap Sertifikasi Guru</title>
-  <script src="/_sdk/data_sdk.js"></script>
-  <script src="/_sdk/element_sdk.js"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Rekap Riwayat Sertifikasi Guru</title>
   <style>
-    body {
-      box-sizing: border-box;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    /* Simple responsive Dapodik-like theme */
+    :root{
+      --primary:#0b63c6; /* dapodik blue */
+      --muted:#6b7280;
+      --card:#ffffff;
+      --bg:#f3f6fb;
     }
+    *{box-sizing:border-box}
+    body{font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; background:var(--bg); margin:0; color:#0f172a}
+    .container{max-width:920px;margin:28px auto;padding:18px}
+    .card{background:var(--card);border-radius:10px;padding:18px;box-shadow:0 6px 18px rgba(11,99,198,0.06)}
+    header{display:flex;gap:12px;align-items:center}
+    .brand{display:flex;flex-direction:column}
+    h1{margin:0;font-size:18px;color:var(--primary)}
+    p.lead{margin:0;color:var(--muted);font-size:13px}
+    form{margin-top:14px;display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+    label{font-size:13px;color:var(--muted);display:block;margin-bottom:6px}
+    input[type="text"], input[type="date"], select{width:100%;padding:10px;border:1px solid #e6eef9;border-radius:8px;font-size:14px}
+    .full{grid-column:1/-1}
+    .actions{display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:12px}
+    button{background:var(--primary);color:#fff;padding:10px 14px;border-radius:8px;border:0;cursor:pointer}
+    button.secondary{background:#fff;color:var(--primary);border:1px solid rgba(11,99,198,0.12)}
+    .note{font-size:12px;color:var(--muted)}
+    .toast{position:fixed;right:18px;bottom:18px;background:#0f5132;color:#fff;padding:10px 14px;border-radius:8px;display:none}
+    @media (max-width:720px){form{grid-template-columns:1fr} .actions{justify-content:stretch}}
   </style>
-  <style>@view-transition { navigation: auto; }</style>
- </head>
- <body class="min-h-full bg-gradient-to-br from-blue-50 to-indigo-100 p-4 md:p-8">
-  <div class="max-w-4xl mx-auto"><!-- Header -->
-   <div class="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-t-xl p-6 shadow-lg">
-    <div class="flex items-center gap-4">
-     <div class="bg-white rounded-full p-3">
-      <svg class="w-10 h-10 text-blue-600" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-      </svg>
-     </div>
-     <div>
-      <h1 id="form-title" class="text-3xl font-bold text-white">Rekap Riwayat Sertifikasi Guru</h1>
-      <p class="text-blue-100 mt-1">Sistem Informasi Dapodik</p>
-     </div>
-    </div>
-   </div><!-- Success Message -->
-   <div id="success-message" class="hidden bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4 rounded" role="alert">
-    <p class="font-medium">✓ Data berhasil disimpan!</p>
-   </div><!-- Limit Warning -->
-   <div id="limit-warning" class="hidden bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4 rounded" role="alert">
-    <p class="font-medium">⚠ Batas maksimum 999 data tercapai. Harap hapus beberapa data terlebih dahulu.</p>
-   </div><!-- Form Container -->
-   <div class="bg-white rounded-b-xl shadow-lg p-6 md:p-8">
-    <form id="certification-form" class="space-y-6"><!-- Identitas GTK -->
-     <div class="border-l-4 border-blue-500 pl-4 mb-6">
-      <h2 class="text-xl font-semibold text-gray-800 mb-4">Identitas GTK</h2>
-     </div>
-     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <div><label for="nama-gtk" class="block text-sm font-medium text-gray-700 mb-2">Nama GTK <span class="text-red-500">*</span></label> <input type="text" id="nama-gtk" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
-      </div>
-      <div><label for="nik" class="block text-sm font-medium text-gray-700 mb-2">NIK <span class="text-red-500">*</span></label> <input type="text" id="nik" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
-      </div>
-      <div><label for="nim" class="block text-sm font-medium text-gray-700 mb-2">NIM <span class="text-red-500">*</span></label> <input type="text" id="nim" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
-      </div>
-      <div><label for="no-ukg" class="block text-sm font-medium text-gray-700 mb-2">No. UKG <span class="text-red-500">*</span></label> <input type="text" id="no-ukg" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
-      </div>
-     </div><!-- Informasi Lembaga -->
-     <div class="border-l-4 border-indigo-500 pl-4 mb-6 mt-8">
-      <h2 class="text-xl font-semibold text-gray-800 mb-4">Informasi Lembaga</h2>
-     </div>
-     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <div><label for="nama-lptk" class="block text-sm font-medium text-gray-700 mb-2">Nama LPTK <span class="text-red-500">*</span></label> <input type="text" id="nama-lptk" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
-      </div>
-      <div><label for="kode-lembaga" class="block text-sm font-medium text-gray-700 mb-2">Kode Lembaga Sertifikasi <span class="text-red-500">*</span></label> <select id="kode-lembaga" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition bg-white"> <option value="">Pilih Lembaga</option> <option value="Kementrian Pendidikan &amp; Kebudayaan">Kementrian Pendidikan &amp; Kebudayaan</option> <option value="Kementrian Agama">Kementrian Agama</option> </select>
-      </div>
-     </div><!-- Informasi Sertifikasi -->
-     <div class="border-l-4 border-green-500 pl-4 mb-6 mt-8">
-      <h2 class="text-xl font-semibold text-gray-800 mb-4">Informasi Sertifikasi</h2>
-     </div>
-     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <div><label for="nama-bidang-studi" class="block text-sm font-medium text-gray-700 mb-2">Nama Bidang Studi <span class="text-red-500">*</span></label> <input type="text" id="nama-bidang-studi" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
-      </div>
-      <div><label for="nomor-sertifikat" class="block text-sm font-medium text-gray-700 mb-2">Nomor Sertifikat Pendidik <span class="text-red-500">*</span></label> <input type="text" id="nomor-sertifikat" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
-      </div>
-      <div><label for="tanggal-sertifikat" class="block text-sm font-medium text-gray-700 mb-2">Tanggal Sertifikat <span class="text-red-500">*</span></label> <input type="date" id="tanggal-sertifikat" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
-      </div>
-     </div><!-- Submit Button -->
-     <div class="flex justify-end mt-8"><button type="submit" id="submit-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-8 py-3 rounded-lg shadow-lg transition transform hover:scale-105 flex items-center gap-2">
-       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-       </svg><span id="submit-btn-text">Simpan Data</span> </button>
-     </div>
-    </form><!-- Data List -->
-    <div class="mt-12">
-     <div class="border-l-4 border-purple-500 pl-4 mb-6">
-      <h2 class="text-xl font-semibold text-gray-800">Data Tersimpan</h2>
-      <p class="text-sm text-gray-600 mt-1">Total: <span id="record-count" class="font-semibold text-blue-600">0</span> data</p>
-     </div>
-     <div id="data-list" class="space-y-4"><!-- Data items will be inserted here -->
-     </div>
-    </div>
-   </div>
-  </div>
-  <script>
-    const defaultConfig = {
-      form_title: "Rekap Riwayat Sertifikasi Guru",
-      submit_button_text: "Simpan Data",
-      primary_color: "#2563eb",
-      secondary_color: "#ffffff",
-      text_color: "#1f2937",
-      accent_color: "#4f46e5",
-      success_color: "#10b981",
-      font_family: "Segoe UI",
-      font_size: 16
-    };
-
-    let currentRecordCount = 0;
-    let allRecords = [];
-
-    const dataHandler = {
-      onDataChanged(data) {
-        allRecords = data;
-        currentRecordCount = data.length;
-        renderDataList(data);
-        updateRecordCount(data.length);
-      }
-    };
-
-    async function initializeApp() {
-      const initResult = await window.dataSdk.init(dataHandler);
-      if (!initResult.isOk) {
-        console.error("Failed to initialize data SDK");
-        return;
-      }
-
-      if (window.elementSdk) {
-        window.elementSdk.init({
-          defaultConfig,
-          onConfigChange: async (config) => {
-            const formTitle = document.getElementById('form-title');
-            const submitBtnText = document.getElementById('submit-btn-text');
-            
-            if (formTitle) {
-              formTitle.textContent = config.form_title || defaultConfig.form_title;
-            }
-            if (submitBtnText) {
-              submitBtnText.textContent = config.submit_button_text || defaultConfig.submit_button_text;
-            }
-
-            const customFont = config.font_family || defaultConfig.font_family;
-            const baseFont = 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif';
-            document.body.style.fontFamily = `${customFont}, ${baseFont}`;
-
-            const baseSize = config.font_size || defaultConfig.font_size;
-            document.body.style.fontSize = `${baseSize}px`;
-            
-            if (formTitle) formTitle.style.fontSize = `${baseSize * 1.875}px`;
-            document.querySelectorAll('h2').forEach(h => h.style.fontSize = `${baseSize * 1.25}px`);
-            document.querySelectorAll('label').forEach(l => l.style.fontSize = `${baseSize * 0.875}px`);
-            document.querySelectorAll('input, select').forEach(i => i.style.fontSize = `${baseSize}px`);
-          },
-          mapToCapabilities: (config) => ({
-            recolorables: [
-              {
-                get: () => config.primary_color || defaultConfig.primary_color,
-                set: (value) => {
-                  if (window.elementSdk && window.elementSdk.config) {
-                    window.elementSdk.config.primary_color = value;
-                    window.elementSdk.setConfig({ primary_color: value });
-                  }
-                }
-              }
-            ],
-            borderables: [],
-            fontEditable: {
-              get: () => config.font_family || defaultConfig.font_family,
-              set: (value) => {
-                if (window.elementSdk && window.elementSdk.config) {
-                  window.elementSdk.config.font_family = value;
-                  window.elementSdk.setConfig({ font_family: value });
-                }
-              }
-            },
-            fontSizeable: {
-              get: () => config.font_size || defaultConfig.font_size,
-              set: (value) => {
-                if (window.elementSdk && window.elementSdk.config) {
-                  window.elementSdk.config.font_size = value;
-                  window.elementSdk.setConfig({ font_size: value });
-                }
-              }
-            }
-          }),
-          mapToEditPanelValues: (config) => new Map([
-            ["form_title", config.form_title || defaultConfig.form_title],
-            ["submit_button_text", config.submit_button_text || defaultConfig.submit_button_text]
-          ])
-        });
-      }
-    }
-
-    function updateRecordCount(count) {
-      const recordCountEl = document.getElementById('record-count');
-      if (recordCountEl) {
-        recordCountEl.textContent = count;
-      }
-    }
-
-    function renderDataList(data) {
-      const dataList = document.getElementById('data-list');
-      if (!dataList) return;
-
-      if (data.length === 0) {
-        dataList.innerHTML = '<div class="text-center py-8 text-gray-500"><p>Belum ada data tersimpan</p></div>';
-        return;
-      }
-
-      const existingItems = new Map(
-        [...dataList.children].map(el => [el.dataset.recordId, el])
-      );
-
-      data.forEach(record => {
-        if (existingItems.has(record.__backendId)) {
-          updateDataItem(existingItems.get(record.__backendId), record);
-          existingItems.delete(record.__backendId);
-        } else {
-          dataList.appendChild(createDataItem(record));
-        }
-      });
-
-      existingItems.forEach(el => el.remove());
-    }
-
-    function createDataItem(record) {
-      const div = document.createElement('div');
-      div.dataset.recordId = record.__backendId;
-      div.className = 'bg-gray-50 border border-gray-200 rounded-lg p-4 hover:shadow-md transition';
-      
-      div.innerHTML = `
-        <div class="flex justify-between items-start">
-          <div class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div><span class="font-semibold text-gray-700">Nama:</span> <span class="text-gray-900">${record.nama_gtk}</span></div>
-            <div><span class="font-semibold text-gray-700">NIK:</span> <span class="text-gray-900">${record.nik}</span></div>
-            <div><span class="font-semibold text-gray-700">NIM:</span> <span class="text-gray-900">${record.nim}</span></div>
-            <div><span class="font-semibold text-gray-700">No. UKG:</span> <span class="text-gray-900">${record.no_ukg}</span></div>
-            <div><span class="font-semibold text-gray-700">LPTK:</span> <span class="text-gray-900">${record.nama_lptk}</span></div>
-            <div><span class="font-semibold text-gray-700">Lembaga:</span> <span class="text-gray-900">${record.kode_lembaga}</span></div>
-            <div><span class="font-semibold text-gray-700">Bidang Studi:</span> <span class="text-gray-900">${record.nama_bidang_studi}</span></div>
-            <div><span class="font-semibold text-gray-700">No. Sertifikat:</span> <span class="text-gray-900">${record.nomor_sertifikat}</span></div>
-            <div><span class="font-semibold text-gray-700">Tanggal:</span> <span class="text-gray-900">${new Date(record.tanggal_sertifikat).toLocaleDateString('id-ID')}</span></div>
-          </div>
-          <button class="delete-btn ml-4 text-red-500 hover:text-red-700 transition" data-id="${record.__backendId}">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-            </svg>
-          </button>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <header>
+        <div style="width:54px;height:54px;border-radius:10px;background:linear-gradient(135deg,var(--primary),#246fbf);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700">DG</div>
+        <div class="brand">
+          <h1>Rekap Riwayat Sertifikasi Guru</h1>
+          <p class="lead">Isikan data sertifikasi guru, data akan tersimpan otomatis ke Admin.</p>
         </div>
-      `;
+      </header>
 
-      const deleteBtn = div.querySelector('.delete-btn');
-      deleteBtn.addEventListener('click', () => handleDelete(record));
+      <form id="rekapForm" class="card" autocomplete="off">
+        <div>
+          <label for="nama">Nama GTK</label>
+          <input id="nama" name="Nama GTK" type="text" required>
+        </div>
 
-      return div;
-    }
+        <div>
+          <label for="nik">NIK</label>
+          <input id="nik" name="NIK" type="text" inputmode="numeric" pattern="\d*" maxlength="20">
+        </div>
 
-    function updateDataItem(element, record) {
-      element.querySelector('div > div:nth-child(1) span:nth-child(2)').textContent = record.nama_gtk;
-      element.querySelector('div > div:nth-child(2) span:nth-child(2)').textContent = record.nik;
-      element.querySelector('div > div:nth-child(3) span:nth-child(2)').textContent = record.nim;
-      element.querySelector('div > div:nth-child(4) span:nth-child(2)').textContent = record.no_ukg;
-      element.querySelector('div > div:nth-child(5) span:nth-child(2)').textContent = record.nama_lptk;
-      element.querySelector('div > div:nth-child(6) span:nth-child(2)').textContent = record.kode_lembaga;
-      element.querySelector('div > div:nth-child(7) span:nth-child(2)').textContent = record.nama_bidang_studi;
-      element.querySelector('div > div:nth-child(8) span:nth-child(2)').textContent = record.nomor_sertifikat;
-      element.querySelector('div > div:nth-child(9) span:nth-child(2)').textContent = new Date(record.tanggal_sertifikat).toLocaleDateString('id-ID');
-    }
+        <div>
+          <label for="nim">NIM</label>
+          <input id="nim" name="NIM" type="text">
+        </div>
 
-    async function handleDelete(record) {
-      const deleteBtn = document.querySelector(`[data-id="${record.__backendId}"]`);
-      const originalText = deleteBtn.innerHTML;
-      deleteBtn.innerHTML = '<span class="text-xs">Menghapus...</span>';
-      deleteBtn.disabled = true;
+        <div>
+          <label for="noukgs">No. UKG</label>
+          <input id="noukgs" name="No. UKG" type="text">
+        </div>
 
-      const result = await window.dataSdk.delete(record);
-      
-      if (!result.isOk) {
-        deleteBtn.innerHTML = originalText;
-        deleteBtn.disabled = false;
-        showMessage('Gagal menghapus data', 'error');
-      }
-    }
+        <div class="full">
+          <label for="lptk">Nama LPTK</label>
+          <input id="lptk" name="Nama LPTK" type="text">
+        </div>
 
-    function showMessage(message, type) {
-      const successMsg = document.getElementById('success-message');
-      if (type === 'success' && successMsg) {
-        successMsg.classList.remove('hidden');
-        setTimeout(() => successMsg.classList.add('hidden'), 3000);
-      }
-    }
+        <div>
+          <label for="kode">Kode Lembaga Sertifikasi</label>
+          <select id="kode" name="Kode Lembaga Sertifikasi">
+            <option value="Kementrian Pendidikan & Kebudayaan">Kementrian Pendidikan & Kebudayaan</option>
+            <option value="Kementrian Agama">Kementrian Agama</option>
+          </select>
+        </div>
 
-    document.getElementById('certification-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
+        <div>
+          <label for="bidang">Nama Bidang Studi</label>
+          <input id="bidang" name="Nama Bidang Studi" type="text">
+        </div>
 
-      if (currentRecordCount >= 999) {
-        const limitWarning = document.getElementById('limit-warning');
-        if (limitWarning) {
-          limitWarning.classList.remove('hidden');
-          setTimeout(() => limitWarning.classList.add('hidden'), 5000);
+        <div>
+          <label for="nosert">Nomor Sertifikat Pendidik</label>
+          <input id="nosert" name="Nomor Sertifikat Pendidik" type="text">
+        </div>
+
+        <div>
+          <label for="tgl">Tanggal Sertifikat</label>
+          <input id="tgl" name="Tanggal Sertifikat" type="date">
+        </div>
+
+        <div class="full actions">
+          <div style="flex:1">
+            <span class="note">kufytrade@2025</span>
+          </div>
+          <button type="button" id="saveBtn">Simpan</button>
+          <button type="button" id="clearBtn" class="secondary">Bersihkan</button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    // ----- CONFIG: replace with your deployed Apps Script web app URL -----
+    const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbykrw7hTa0I2ikg4ax_PKuDTWw5W9lQ7IgsxNsuHveiUZeWYKoyN8VKiSdKW9D-GQ3R/exec';
+    // ---------------------------------------------------------------------
+
+    const form = document.getElementById('rekapForm');
+    const saveBtn = document.getElementById('saveBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const toast = document.getElementById('toast');
+
+    function showToast(msg, ms=3500){ toast.textContent = msg; toast.style.display = 'block'; setTimeout(()=>toast.style.display='none', ms); }
+
+    function collectData(){
+      const fm = new FormData(form);
+      const obj = {};
+      for(const [k,v] of fm.entries()) obj[k] = v;
+      // normalize date to yyyy-mm-dd (if present)
+      if(obj['Tanggal Sertifikat']){
+        // ensure format
+        const d = new Date(obj['Tanggal Sertifikat']);
+        if(!isNaN(d)){
+          const y=d.getFullYear(); const m=String(d.getMonth()+1).padStart(2,'0'); const day=String(d.getDate()).padStart(2,'0');
+          obj['Tanggal Sertifikat'] = `${y}-${m}-${day}`;
         }
-        return;
       }
+      return obj;
+    }
 
-      const submitBtn = document.getElementById('submit-btn');
-      const originalText = submitBtn.innerHTML;
-      submitBtn.innerHTML = '<span>Menyimpan...</span>';
-      submitBtn.disabled = true;
-
-      const formData = {
-        nama_gtk: document.getElementById('nama-gtk').value,
-        nik: document.getElementById('nik').value,
-        nim: document.getElementById('nim').value,
-        no_ukg: document.getElementById('no-ukg').value,
-        nama_lptk: document.getElementById('nama-lptk').value,
-        kode_lembaga: document.getElementById('kode-lembaga').value,
-        nama_bidang_studi: document.getElementById('nama-bidang-studi').value,
-        nomor_sertifikat: document.getElementById('nomor-sertifikat').value,
-        tanggal_sertifikat: document.getElementById('tanggal-sertifikat').value,
-        created_at: new Date().toISOString()
-      };
-
-      const result = await window.dataSdk.create(formData);
-
-      if (result.isOk) {
-        e.target.reset();
-        showMessage('Data berhasil disimpan', 'success');
-      } else {
-        showMessage('Gagal menyimpan data', 'error');
+    async function postToSheet(payload){
+      if(WEB_APP_URL.startsWith('REPLACE')){
+        showToast('ERROR: Ganti WEB_APP_URL di script sebelum mengirim.');
+        throw new Error('WEB_APP_URL not configured');
       }
+      const res = await fetch(WEB_APP_URL, {
+        method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
+      });
+      if(!res.ok) throw new Error('Network response was not ok');
+      return res.json();
+    }
 
-      submitBtn.innerHTML = originalText;
-      submitBtn.disabled = false;
+    saveBtn.addEventListener('click', async ()=>{
+      try{
+        saveBtn.disabled = true;
+        const data = collectData();
+        // basic validation: Nama GTK required
+        if(!data['Nama GTK'] || data['Nama GTK'].trim()===''){ showToast('Nama GTK wajib diisi'); saveBtn.disabled=false; return; }
+        showToast('Mengirim data...');
+        const resp = await postToSheet(data);
+        if(resp && resp.result==='success'){
+          showToast('Tersimpan ✓');
+          form.reset();
+        } else {
+          showToast('Gagal menyimpan — lihat konsol.');
+          console.error('Response:', resp);
+        }
+      }catch(err){
+        console.error(err);
+        showToast('Terjadi kesalahan: ' + (err.message||err));
+      }finally{ saveBtn.disabled=false; }
     });
 
-    initializeApp();
+    clearBtn.addEventListener('click', ()=>{ if(confirm('Bersihkan semua input?')) form.reset(); });
+
+    // Optional: auto-save on form change (debounced)
+    let timer;
+    form.addEventListener('input', ()=>{
+      clearTimeout(timer);
+      timer = setTimeout(async ()=>{
+        const data = collectData();
+        // only auto-save when Nama GTK present to avoid empty rows
+        if(data['Nama GTK'] && data['Nama GTK'].trim()!==""){
+          try{ await postToSheet(Object.assign({_auto:'true'}, data)); console.log('Auto-saved'); } catch(e){ console.log('Auto-save failed', e); }
+        }
+      }, 1500);
+    });
   </script>
- <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9a29262ee38ffd23',t:'MTc2MzgyMjA4Mi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+
+  <!--
+  -------------------- GOOGLE APPS SCRIPT (Code.gs) --------------------
+  Paste this into a new Google Apps Script project (replace SPREADSHEET_ID),
+  then Deploy -> New deployment -> Web app -> 'Execute as: Me', 'Who has access: Anyone'
+  Copy the web app URL and paste into WEB_APP_URL constant above.
+  ---------------------------------------------------------------------
+  -->
+
+  <script type="text/plain" id="code-gs">
+  // Code.gs
+  const SPREADSHEET_ID = '174AKi3aME8csmnN-hVlnd-7OUQwqb2TiWQiAKOe3z10'; // e.g. from spreadsheet URL
+
+  function doGet(e){
+    return ContentService.createTextOutput(JSON.stringify({status:'ok', message:'Web app ready'})).setMimeType(ContentService.MimeType.JSON);
+  }
+
+  function doPost(e){
+    try{
+      // Accept JSON body
+      const body = e.postData && e.postData.type === 'application/json' ? JSON.parse(e.postData.contents) : e.parameter;
+
+      const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+      const sheet = ss.getSheetByName('Rekap') || ss.insertSheet('Rekap');
+
+      // Header row (create if sheet is empty)
+      const headers = ['Timestamp','Nama GTK','NIK','NIM','No. UKG','Nama LPTK','Kode Lembaga Sertifikasi','Nama Bidang Studi','Nomor Sertifikat Pendidik','Tanggal Sertifikat','_auto'];
+      if(sheet.getLastRow() === 0){ sheet.appendRow(headers); }
+
+      const row = [new Date(),
+        body['Nama GTK']||'', body['NIK']||'', body['NIM']||'', body['No. UKG']||'', body['Nama LPTK']||'', body['Kode Lembaga Sertifikasi']||'', body['Nama Bidang Studi']||'', body['Nomor Sertifikat Pendidik']||'', body['Tanggal Sertifikat']||'', body['_auto']||''
+      ];
+
+      sheet.appendRow(row);
+
+      return ContentService.createTextOutput(JSON.stringify({result:'success'})).setMimeType(ContentService.MimeType.JSON);
+    } catch(err){
+      return ContentService.createTextOutput(JSON.stringify({result:'error', message:err.message})).setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+  </script>
+
+</body>
 </html>
